@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TextDraw Model Preview</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header class="topbar">
+    <div class="brand">
+        <span class="logo">TD</span>
+        <div>
+            <h1>TextDraw Model Preview</h1>
+            <p>Simulador offline do <code>TEXT_DRAW_FONT_MODEL_PREVIEW</code></p>
+        </div>
+    </div>
+    <span id="source-badge" class="badge"></span>
+</header>
+
+<main class="app">
+    <!-- ===== Left column: controls ===== -->
+    <aside class="col col-left">
+        <section class="card">
+            <div class="card-head"><h2>Modelo</h2></div>
+            <div class="model-nav">
+                <button id="prev-model" class="btn icon" title="Modelo anterior">‹</button>
+                <input id="model-id" type="number" value="411" title="ID do modelo">
+                <button id="next-model" class="btn icon" title="Próximo modelo">›</button>
+                <select id="source-select" title="De onde carregar o modelo">
+                    <option value="">Auto</option>
+                    <option value="openmp">open.mp</option>
+                    <option value="local">Jogo local</option>
+                </select>
+            </div>
+            <div class="search">
+                <input id="search" type="search" placeholder="Buscar por nome ou ID…" autocomplete="off">
+                <ul id="results"></ul>
+            </div>
+            <div class="segmented" id="kind-tabs">
+                <button data-kind="" class="active">Todos</button>
+                <button data-kind="s">Skins</button>
+                <button data-kind="v">Veículos</button>
+                <button data-kind="o">Objetos</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-head"><h2>Rotação e zoom</h2><button id="reset-rot" class="btn ghost sm" title="Voltar para a rotação padrão do tipo de modelo">Padrão</button></div>
+            <div class="slider" data-key="rx"><label title="Rotação X"><span class="axis x">X</span></label><input type="range" min="-180" max="180" step="0.5"><input type="number" step="0.5"></div>
+            <div class="slider" data-key="ry"><label title="Rotação Y"><span class="axis y">Y</span></label><input type="range" min="-180" max="180" step="0.5"><input type="number" step="0.5"></div>
+            <div class="slider" data-key="rz"><label title="Rotação Z"><span class="axis z">Z</span></label><input type="range" min="-180" max="180" step="0.5"><input type="number" step="0.5"></div>
+            <div class="slider" data-key="zoom"><label><span class="axis zm" title="Zoom"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="4.5"/><path d="M9.5 9.5 13 13"/></svg></span></label><input type="range" min="0.1" max="4" step="0.01"><input type="number" step="0.05" min="0.01"></div>
+            <div class="chips">
+                <button class="chip" data-quick="rz:-45">Z −45°</button>
+                <button class="chip" data-quick="rz:45">Z +45°</button>
+                <button class="chip" data-quick="rx:-15">X −15°</button>
+                <button class="chip" data-quick="rx:15">X +15°</button>
+                <button class="chip" data-quick="ry:90">Y +90°</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-head"><h2>Aparência</h2></div>
+            <div class="field">
+                <label>Cor de fundo <small>BackgroundColor</small></label>
+                <div class="inline">
+                    <input id="bg-color" type="color" value="#000000">
+                    <label class="mini">Alpha <input id="bg-alpha" type="number" min="0" max="255" value="0" title="Alpha (0-255)"></label>
+                </div>
+            </div>
+            <div class="field" id="vehcol-row">
+                <label>Cores do veículo</label>
+                <div class="inline">
+                    <button id="c1-swatch" class="swatch" title="Escolher cor 1"></button>
+                    <input id="c1" type="number" min="-1" max="255" value="1" title="Cor 1">
+                    <button id="c2-swatch" class="swatch" title="Escolher cor 2"></button>
+                    <input id="c2" type="number" min="-1" max="255" value="1" title="Cor 2">
+                </div>
+            </div>
+            <div id="palette" hidden></div>
+            <div class="field" id="extra-row" hidden>
+                <label title="Componentes opcionais do veículo (o jogo escolhe um aleatório)">Componente extra</label>
+                <select id="extra"></select>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-head"><h2>TextDraw</h2></div>
+            <div class="grid4">
+                <label>X<input id="td-x" type="number" step="0.5" value="240"></label>
+                <label>Y<input id="td-y" type="number" step="0.5" value="150"></label>
+                <label>Largura<input id="td-w" type="number" step="0.5" value="160"></label>
+                <label>Altura<input id="td-h" type="number" step="0.5" value="160"></label>
+            </div>
+            <div class="field">
+                <label>Variável</label>
+                <input id="td-var" type="text" value="td" title="Nome da variável">
+            </div>
+            <div class="toggles">
+                <label class="check"><input id="td-player" type="checkbox"> PlayerTextDraw</label>
+                <label class="check"><input id="td-selectable" type="checkbox"> Selecionável</label>
+            </div>
+        </section>
+
+        <details class="card">
+            <summary><h2>Calibração</h2><span class="muted">avançado</span></summary>
+            <p class="hint">O código do cliente SA-MP é fechado, então a câmera é uma aproximação. Se algum preview não bater com o jogo, ajuste aqui uma vez (fica salvo no navegador).</p>
+            <div class="field"><label>Ordem das rotações</label>
+                <select id="cal-order">
+                    <option value="ZYX">X → Y → Z (eixos do mundo)</option>
+                    <option value="XYZ">Z → Y → X</option>
+                    <option value="YXZ">Z → X → Y</option>
+                    <option value="ZXY">Y → X → Z</option>
+                </select></div>
+            <div class="field"><label>Câmera olha de</label>
+                <select id="cal-side"><option value="1">+Y (frente)</option><option value="-1">−Y (trás)</option></select></div>
+            <div class="grid2">
+                <label>FOV<input id="cal-fov" type="number" min="5" max="120" step="1"></label>
+                <label>Distância ×<input id="cal-dist" type="number" min="0.1" max="5" step="0.05"></label>
+            </div>
+            <label class="check"><input id="cal-stretch" type="checkbox"> Esticar imagem no tamanho do textdraw</label>
+            <button id="cal-reset" class="btn ghost sm full">Restaurar calibração padrão</button>
+        </details>
+    </aside>
+
+    <!-- ===== Center: stage ===== -->
+    <section class="col stage">
+        <div class="stage-bar">
+            <div class="segmented" id="stage-tabs">
+                <button data-view="preview" class="active">Preview</button>
+                <button data-view="screen">Na tela 640×448</button>
+            </div>
+            <div class="screen-tools" hidden>
+                <label class="btn ghost sm">Usar screenshot do jogo<input id="screen-bg" type="file" accept="image/*" hidden></label>
+                <button id="screen-bg-clear" class="btn ghost sm">Limpar fundo</button>
+            </div>
+            <span id="status" class="muted"></span>
+        </div>
+
+        <div class="viewport">
+            <div class="view view-preview active">
+                <div id="preview-box" class="checker"><canvas id="preview"></canvas></div>
+            </div>
+            <div class="view view-screen">
+                <div id="screen"><canvas id="screen-canvas" width="1280" height="896"></canvas></div>
+            </div>
+        </div>
+
+        <div class="stage-foot">
+            <div id="model-name"></div>
+            <div class="hint">Arraste para girar · <kbd>Shift</kbd> + arrastar = eixo Y · roda do mouse = zoom</div>
+        </div>
+    </section>
+
+    <!-- ===== Right column: code ===== -->
+    <aside class="col col-right">
+        <section class="card">
+            <div class="card-head"><h2>Código PAWN</h2></div>
+            <pre id="code"></pre>
+            <div class="btn-row">
+                <button id="copy-code" class="btn primary">Copiar tudo</button>
+                <button id="copy-rot" class="btn">Copiar só a rotação</button>
+            </div>
+        </section>
+        <section class="card">
+            <div class="card-head"><h2>Importar código</h2></div>
+            <textarea id="import" placeholder="Cole aqui o bloco do seu textdraw (TextDraw* ou PlayerTextDraw*): SetPreviewRot, SetPreviewModel, TextSize, BackgroundColor…"></textarea>
+            <button id="import-btn" class="btn full">Importar</button>
+        </section>
+    </aside>
+</main>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

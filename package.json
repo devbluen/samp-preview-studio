@@ -1,0 +1,13 @@
+{
+  "name": "preview-objects-samp",
+  "version": "1.0.0",
+  "description": "Pré-visualizador offline de TextDraw Model Preview (SA-MP / open.mp)",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "three": "0.160.0"
+  }
+}
