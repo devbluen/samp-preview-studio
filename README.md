@@ -45,3 +45,7 @@ The SA-MP client's rendering code is closed source, so the textdraw preview came
 - The camera distance is proportional to the model radius × `zoom`. A smaller zoom value moves the camera closer, as in SA-MP.
 
 If a result doesn't match the game, compare it once against a real textdraw and adjust it under "Calibration". You can change the rotation order, camera side, FOV, distance and stretching. These settings are saved in the browser.
+
+## Preview
+<img width="3436" height="1273" alt="image" src="https://github.com/user-attachments/assets/693e3399-85aa-4e20-ac32-dd39f27c2576" />
+<img width="3436" height="1261" alt="image" src="https://github.com/user-attachments/assets/d3a790c6-b5be-4569-b84a-ff4668a30702" />
