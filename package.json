@@ -1,7 +1,7 @@
 {
-  "name": "preview-objects-samp",
+  "name": "samp-preview-studio",
   "version": "1.0.0",
-  "description": "Pré-visualizador offline de TextDraw Model Preview (SA-MP / open.mp)",
+  "description": "Offline previewer for SA-MP/open.mp: textdraw model previews (TextDrawSetPreviewRot) and a 3D editor for SetPlayerAttachedObject. No server needed.",
   "type": "module",
   "main": "server.js",
   "scripts": {

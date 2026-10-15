@@ -31,7 +31,7 @@ class Reader {
         this.offset = 0;
     }
     ensure(n) {
-        if (n < 0 || this.offset + n > this.view.byteLength) throw new Error('Fim inesperado do DFF');
+        if (n < 0 || this.offset + n > this.view.byteLength) throw new Error('Unexpected end of DFF data');
     }
     u8() { this.ensure(1); return this.view.getUint8(this.offset++); }
     u16() { this.ensure(2); const v = this.view.getUint16(this.offset, true); this.offset += 2; return v; }
@@ -53,7 +53,7 @@ class Reader {
         const version = this.u32();
         const payload = this.offset;
         const end = payload + length;
-        if (end > this.view.byteLength) throw new Error(`Chunk DFF inválido 0x${type.toString(16)}`);
+        if (end > this.view.byteLength) throw new Error(`Invalid DFF chunk 0x${type.toString(16)}`);
         return { type, length, version, payload, end };
     }
     finish(c) { this.offset = c.end; }
@@ -68,7 +68,7 @@ function readMatrix(r) {
 
 function readFrameList(r) {
     const list = r.chunk();
-    if (list.type !== CHUNK_FRAMELIST) throw new Error('DFF sem frame list');
+    if (list.type !== CHUNK_FRAMELIST) throw new Error('DFF is missing its frame list');
     const st = r.chunk();
     const count = r.u32();
     const frames = [];
@@ -81,7 +81,7 @@ function readFrameList(r) {
     r.finish(st);
     for (const frame of frames) {
         const ext = r.chunk();
-        if (ext.type !== CHUNK_EXTENSION) throw new Error('Frame sem extensão');
+        if (ext.type !== CHUNK_EXTENSION) throw new Error('DFF frame is missing its extension');
         while (r.offset < ext.end) {
             const c = r.chunk();
             if (c.type === CHUNK_FRAME) frame.name = r.str(c.length);
@@ -108,7 +108,7 @@ function readFrameList(r) {
 
 function readTextureName(r) {
     const tex = r.chunk();
-    if (tex.type !== CHUNK_TEXTURE) throw new Error('Material sem textura');
+    if (tex.type !== CHUNK_TEXTURE) throw new Error('DFF material is missing its texture');
     const st = r.chunk(); r.finish(st);
     const nameChunk = r.chunk();
     const name = nameChunk.type === CHUNK_STRING ? r.str(nameChunk.length) : '';
@@ -120,7 +120,7 @@ function readTextureName(r) {
 
 function readMaterials(r) {
     const ml = r.chunk();
-    if (ml.type !== CHUNK_MATLIST) throw new Error('Geometria sem material list');
+    if (ml.type !== CHUNK_MATLIST) throw new Error('DFF geometry is missing its material list');
     const st = r.chunk();
     const count = r.u32();
     const instanceOf = Array.from({ length: count }, () => r.i32());
@@ -132,7 +132,7 @@ function readMaterials(r) {
             continue;
         }
         const mat = r.chunk();
-        if (mat.type !== CHUNK_MATERIAL) throw new Error('Material inválido');
+        if (mat.type !== CHUNK_MATERIAL) throw new Error('Invalid DFF material');
         const mst = r.chunk();
         r.skip(4);
         const color = [r.u8(), r.u8(), r.u8(), r.u8()];
@@ -171,7 +171,7 @@ function readNativeValue(view, off, type, norm) {
         case 2: v = view.getUint8(off); break;
         case 3: v = view.getInt16(off, true); break;
         case 4: v = view.getUint16(off, true); break;
-        default: throw new Error('Atributo nativo não suportado');
+        default: throw new Error('Unsupported native DFF attribute');
     }
     if (!norm) return v;
     return [v, v / 128, v / 255, v / 32768, v / 65536][type];
@@ -227,7 +227,7 @@ function readSkin(r, vertexCount) {
 
 function readGeometry(r) {
     const gc = r.chunk();
-    if (gc.type !== CHUNK_GEOMETRY) throw new Error('Geometria inválida');
+    if (gc.type !== CHUNK_GEOMETRY) throw new Error('Invalid DFF geometry');
     const st = r.chunk();
     const flags = r.u16();
     let numUvs = r.u8();
@@ -290,7 +290,7 @@ export function parseDff(buffer) {
     let clump = r.chunk();
     while (clump.type !== CHUNK_CLUMP) {
         r.finish(clump);
-        if (r.offset >= r.view.byteLength) throw new Error('DFF sem clump');
+        if (r.offset >= r.view.byteLength) throw new Error('DFF does not contain a clump');
         clump = r.chunk();
     }
     const cst = r.chunk();
@@ -298,7 +298,7 @@ export function parseDff(buffer) {
     r.finish(cst);
     const frames = readFrameList(r);
     const gl = r.chunk();
-    if (gl.type !== CHUNK_GEOMETRYLIST) throw new Error('DFF sem geometry list');
+    if (gl.type !== CHUNK_GEOMETRYLIST) throw new Error('DFF is missing its geometry list');
     const gst = r.chunk();
     const geometryCount = r.u32();
     r.finish(gst);
@@ -308,7 +308,7 @@ export function parseDff(buffer) {
     const atomics = [];
     for (let i = 0; i < atomicCount; i++) {
         const a = r.chunk();
-        if (a.type !== CHUNK_ATOMIC) throw new Error('Atomic inválido');
+        if (a.type !== CHUNK_ATOMIC) throw new Error('Invalid DFF atomic');
         const ast = r.chunk();
         const frame = r.i32();
         const geometry = r.i32();

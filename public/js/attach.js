@@ -10,24 +10,24 @@ const DEG = Math.PI / 180;
 
 // SA-MP attachment bones -> GTA SA ped bone ids (HAnim) and frame names
 export const BONES = [
-    { id: 1, name: 'Coluna', boneId: 3, frame: 'spine1' },
-    { id: 2, name: 'Cabeça', boneId: 5, frame: 'head' },
-    { id: 3, name: 'Braço esquerdo', boneId: 32, frame: 'l upperarm' },
-    { id: 4, name: 'Braço direito', boneId: 22, frame: 'r upperarm' },
-    { id: 5, name: 'Mão esquerda', boneId: 34, frame: 'l hand' },
-    { id: 6, name: 'Mão direita', boneId: 24, frame: 'r hand' },
-    { id: 7, name: 'Coxa esquerda', boneId: 41, frame: 'l thigh' },
-    { id: 8, name: 'Coxa direita', boneId: 51, frame: 'r thigh' },
-    { id: 9, name: 'Pé esquerdo', boneId: 43, frame: 'l foot' },
-    { id: 10, name: 'Pé direito', boneId: 53, frame: 'r foot' },
-    { id: 11, name: 'Panturrilha direita', boneId: 52, frame: 'r calf' },
-    { id: 12, name: 'Panturrilha esquerda', boneId: 42, frame: 'l calf' },
-    { id: 13, name: 'Antebraço esquerdo', boneId: 33, frame: 'l forearm' },
-    { id: 14, name: 'Antebraço direito', boneId: 23, frame: 'r forearm' },
-    { id: 15, name: 'Ombro esquerdo', boneId: 31, frame: 'bip01 l clavicle' },
-    { id: 16, name: 'Ombro direito', boneId: 21, frame: 'bip01 r clavicle' },
-    { id: 17, name: 'Pescoço', boneId: 4, frame: 'neck' },
-    { id: 18, name: 'Mandíbula', boneId: 8, frame: 'jaw' },
+    { id: 1, name: 'Spine', boneId: 3, frame: 'spine1' },
+    { id: 2, name: 'Head', boneId: 5, frame: 'head' },
+    { id: 3, name: 'Left upper arm', boneId: 32, frame: 'l upperarm' },
+    { id: 4, name: 'Right upper arm', boneId: 22, frame: 'r upperarm' },
+    { id: 5, name: 'Left hand', boneId: 34, frame: 'l hand' },
+    { id: 6, name: 'Right hand', boneId: 24, frame: 'r hand' },
+    { id: 7, name: 'Left thigh', boneId: 41, frame: 'l thigh' },
+    { id: 8, name: 'Right thigh', boneId: 51, frame: 'r thigh' },
+    { id: 9, name: 'Left foot', boneId: 43, frame: 'l foot' },
+    { id: 10, name: 'Right foot', boneId: 53, frame: 'r foot' },
+    { id: 11, name: 'Right calf', boneId: 52, frame: 'r calf' },
+    { id: 12, name: 'Left calf', boneId: 42, frame: 'l calf' },
+    { id: 13, name: 'Left forearm', boneId: 33, frame: 'l forearm' },
+    { id: 14, name: 'Right forearm', boneId: 23, frame: 'r forearm' },
+    { id: 15, name: 'Left clavicle', boneId: 31, frame: 'bip01 l clavicle' },
+    { id: 16, name: 'Right clavicle', boneId: 21, frame: 'bip01 r clavicle' },
+    { id: 17, name: 'Neck', boneId: 4, frame: 'neck' },
+    { id: 18, name: 'Jaw', boneId: 8, frame: 'jaw' },
 ];
 
 export class AttachEditor {
@@ -106,13 +106,13 @@ export class AttachEditor {
 
     async setSkin(id) {
         const token = (this.skinToken = (this.skinToken || 0) + 1);
-        this.onStatus?.('Carregando skin…', 'loading');
+        this.onStatus?.('Loading skin…', 'loading');
         try {
             const { info, root } = await this.loader.load(id, '');
             if (token !== this.skinToken) return disposeModel(root);
             if (info.kind !== 'skin') {
                 disposeModel(root);
-                throw new Error(`O modelo ${id} não é uma skin.`);
+                throw new Error(`Model ${id} is not a skin.`);
             }
             if (this.skin) {
                 this.scene.remove(this.skin.root);

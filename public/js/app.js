@@ -86,18 +86,18 @@ async function loadModel(id) {
     const seq = ++loadSeq;
     state.model = id;
     $('#model-id').value = id;
-    setStatus('Carregando modelo…', 'loading');
+    setStatus('Loading model…', 'loading');
     try {
         const info = await snapshot.load(id, state.source);
         if (seq !== loadSeq || !info) return;
         state.kind = info.kind;
         const extras = snapshot.extras;
         if (!extras.includes(state.extra)) state.extra = extras[0] ?? '';
-        $('#extra').innerHTML = '<option value="">nenhum</option>' + extras.map((e) => `<option>${e}</option>`).join('');
+        $('#extra').innerHTML = '<option value="">none</option>' + extras.map((e) => `<option>${e}</option>`).join('');
         $('#extra').value = state.extra;
         $('#extra-row').hidden = !extras.length;
-        const label = { skin: 'Skin', vehicle: 'Veículo', object: 'Objeto' }[info.kind];
-        $('#model-name').innerHTML = `<span class="tag">${label}</span><b></b><span class="model-file"></span><span class="tag src">${info.source === 'local' ? 'jogo local' : 'open.mp'}</span>`;
+        const label = { skin: 'Skin', vehicle: 'Vehicle', object: 'Object' }[info.kind];
+        $('#model-name').innerHTML = `<span class="tag">${label}</span><b></b><span class="model-file"></span><span class="tag src">${info.source === 'local' ? 'local game' : 'open.mp'}</span>`;
         $('#model-name b').textContent = info.name;
         $('#model-name .model-file').textContent = info.name !== info.model ? ` · ${info.model}.dff` : '';
         setStatus('');
@@ -151,7 +151,7 @@ function renderResults() {
     }
     for (const [id, model, name, kind] of hits) {
         const li = document.createElement('li');
-        li.innerHTML = `<b>${id}</b><span></span><i>${{ s: 'skin', v: 'veículo', o: 'objeto' }[kind]}</i>`;
+        li.innerHTML = `<b>${id}</b><span></span><i>${{ s: 'skin', v: 'vehicle', o: 'object' }[kind]}</i>`;
         li.querySelector('span').textContent = name ? `${name} (${model})` : model;
         li.onclick = () => { closeResults(); loadModel(id); };
         ul.appendChild(li);
@@ -327,12 +327,12 @@ function bind() {
     $('#copy-rot').onclick = () => copy(pawn.rotLine(state));
     $('#import-btn').onclick = () => {
         const parsed = pawn.parse($('#import').value);
-        if (!Object.keys(parsed).length) return toast('Nada reconhecido no código colado');
+        if (!Object.keys(parsed).length) return toast('Nothing recognized in the pasted code');
         const modelChanged = parsed.model !== undefined && parsed.model !== state.model;
         Object.assign(state, parsed);
         syncInputs();
         if (modelChanged) loadModel(state.model); else requestRender();
-        toast(`Importado: ${Object.keys(parsed).join(', ')}`);
+        toast(`Imported: ${Object.keys(parsed).join(', ')}`);
     };
 
     // Screen background
@@ -387,7 +387,7 @@ async function copy(text) {
     try { await navigator.clipboard.writeText(text); } catch {
         const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
     }
-    toast('Copiado!');
+    toast('Copied!');
 }
 
 // ---------------- mode switch (textdraw / attached object) ----------------
@@ -445,11 +445,11 @@ async function init() {
         const res = await fetch('/api/catalog');
         const data = await res.json();
         catalog = data.items;
-        $('#source-badge').textContent = data.local ? 'fontes: open.mp + jogo local' : 'fonte: assets.open.mp';
+        $('#source-badge').textContent = data.local ? 'sources: open.mp + local game' : 'source: assets.open.mp';
         if (!data.local) $('#source-select option[value=local]').remove();
         if (!data.local && state.source === 'local') state.source = '';
     } catch {
-        setStatus('Não foi possível carregar o catálogo', 'error');
+        setStatus('Could not load the catalog', 'error');
     }
     loadModel(state.model);
 

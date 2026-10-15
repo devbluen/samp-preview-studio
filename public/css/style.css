@@ -291,7 +291,7 @@ textarea { width: 100%; min-height: 150px; resize: vertical; font-size: 12px; li
 .btn.danger:hover { color: #ff7d7a; border-color: #ff7d7a; }
 
 .slot-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.slot-list:empty::before { content: 'Nenhum objeto. Clique em "+ Adicionar" ou importe código.'; color: var(--muted); font-size: 12px; }
+.slot-list:empty::before { content: 'No objects yet. Click "+ Add" or import code.'; color: var(--muted); font-size: 12px; }
 .slot-list li {
     display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 10px;
     padding: 7px 8px; border-radius: var(--radius-sm); border: 1px solid transparent; cursor: pointer;

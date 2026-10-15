@@ -32,12 +32,12 @@ if (config.gtaPath) {
     try {
         local = new LocalGame(config.gtaPath);
         local.load();
-        console.log(`[local] GTA SA carregado de ${config.gtaPath}: ${local.models.size} modelos em IDE, ${local.imgEntries.size} arquivos em IMG`);
+        console.log(`[local] GTA SA loaded from ${config.gtaPath}: ${local.models.size} models in IDE files, ${local.imgEntries.size} files in IMG archives`);
         for (const [id, m] of local.models) {
             if (!catalog.has(id)) catalog.set(id, { id, model: m.model, name: m.model, kind: m.kind });
         }
     } catch (e) {
-        console.error(`[local] Falha ao carregar o GTA em "${config.gtaPath}": ${e.message}`);
+        console.error(`[local] Failed to load GTA SA from "${config.gtaPath}": ${e.message}`);
         local = null;
     }
 }
@@ -84,12 +84,12 @@ const safeName = (s) => /^[\w.\-]+$/.test(s);
 
 async function serveStatic(res, base, rel) {
     const file = path.normalize(path.join(base, rel));
-    if (!file.startsWith(base)) return send(res, 403, { error: 'proibido' });
+    if (!file.startsWith(base)) return send(res, 403, { error: 'forbidden' });
     try {
         const data = await fsp.readFile(file);
         send(res, 200, data, MIME[path.extname(file)] || 'application/octet-stream');
     } catch {
-        send(res, 404, { error: 'não encontrado' });
+        send(res, 404, { error: 'not found' });
     }
 }
 
@@ -119,7 +119,7 @@ const server = http.createServer(async (req, res) => {
             if (lm && prefer !== 'openmp' && local.hasFile(lm.model + '.dff')) {
                 return send(res, 200, { id, kind: lm.kind, model: lm.model, name: entry?.name ?? lm.model, source: 'local', dff: `/api/local/dff/${lm.model}`, txds: local.txdChain(lm, kind) });
             }
-            if (!entry) return send(res, 404, { error: `Modelo ${id} não existe no catálogo${local ? ' nem no jogo local' : ''}.` });
+            if (!entry) return send(res, 404, { error: `Model ${id} is not in the catalog${local ? ' or the local game' : ''}.` });
             return send(res, 200, { id, kind, model: entry.model, name: entry.name, source: 'openmp', dff: `/api/openmp/dff/${entry.model}` });
         }
 
@@ -136,12 +136,12 @@ const server = http.createServer(async (req, res) => {
         m = p.match(/^\/api\/local\/dff\/(.+)$/);
         if (m && local && safeName(m[1])) {
             const buf = local.readFile(m[1] + '.dff');
-            return buf ? send(res, 200, buf, 'application/octet-stream') : send(res, 404, { error: 'DFF não encontrado' });
+            return buf ? send(res, 200, buf, 'application/octet-stream') : send(res, 404, { error: 'DFF not found' });
         }
         m = p.match(/^\/api\/local\/txd\/(.+)$/);
         if (m && local && safeName(m[1])) {
             const tex = local.readTxd(m[1]);
-            return tex ? send(res, 200, tex, 'application/octet-stream') : send(res, 404, { error: 'TXD não encontrado' });
+            return tex ? send(res, 200, tex, 'application/octet-stream') : send(res, 404, { error: 'TXD not found' });
         }
 
         if (p.startsWith('/vendor/three/')) return serveStatic(res, path.join(ROOT, 'node_modules', 'three'), p.slice('/vendor/three/'.length));
@@ -153,13 +153,13 @@ const server = http.createServer(async (req, res) => {
 
 server.on('error', (e) => {
     if (e.code === 'EADDRINUSE') {
-        console.error(`A porta ${config.port} já está em uso (o preview já está aberto?). Use outra: PORT=3001 npm start, ou "port" no config.json.`);
+        console.error(`Port ${config.port} is already in use (is the app already running?). Use another one: PORT=3001 npm start, or "port" in config.json.`);
         process.exit(1);
     }
     throw e;
 });
 
 server.listen(config.port, () => {
-    console.log(`Preview de TextDraw rodando em http://localhost:${config.port}`);
-    if (!local) console.log('Fonte de modelos: assets.open.mp (configure "gtaPath" em config.json para usar o seu jogo)');
+    console.log(`SA-MP Preview Studio running at http://localhost:${config.port}`);
+    if (!local) console.log('Model source: assets.open.mp (set "gtaPath" in config.json to use your game files)');
 });

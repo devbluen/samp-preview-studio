@@ -28,9 +28,9 @@ export class ModelLoader {
         const q = source ? `?source=${source}` : '';
         const infoRes = await fetch(`/api/model/${id}${q}`);
         const info = await infoRes.json();
-        if (!infoRes.ok) throw new Error(info.error || 'Falha ao buscar o modelo');
+        if (!infoRes.ok) throw new Error(info.error || 'Failed to fetch the model');
         const dffRes = await fetch(info.dff);
-        if (!dffRes.ok) throw new Error(`Modelo "${info.model}" não está disponível (${dffRes.status}).`);
+        if (!dffRes.ok) throw new Error(`Model "${info.model}" is not available (${dffRes.status}).`);
         const dff = parseDff(await dffRes.arrayBuffer());
         const textures = await this.loadTextures(info, dff);
         return { info, root: build(dff, textures, info.kind) };

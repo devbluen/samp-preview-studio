@@ -100,7 +100,7 @@ const freeIndex = () => {
 };
 const modelLabel = (id) => {
     const c = catalogMap.get(id);
-    return c ? (c[2] || c[1]) : `modelo ${id}`;
+    return c ? (c[2] || c[1]) : `model ${id}`;
 };
 const boneName = (id) => BONES.find((b) => b.id === id)?.name ?? `bone ${id}`;
 
@@ -172,7 +172,7 @@ function renderSlots() {
         const li = document.createElement('li');
         li.classList.toggle('active', s.index === state.selected);
         const item = editor?.items.get(s.index);
-        li.innerHTML = `<span class="slot-idx">${s.index}</span><span class="slot-main"><b></b><span></span></span><button class="slot-del" title="Remover">×</button>`;
+        li.innerHTML = `<span class="slot-idx">${s.index}</span><span class="slot-main"><b></b><span></span></span><button class="slot-del" title="Remove">×</button>`;
         li.querySelector('b').textContent = `${s.model} · ${modelLabel(s.model)}`;
         const sub = li.querySelector('.slot-main span');
         sub.textContent = item?.error ? item.error : boneName(s.bone);
@@ -186,7 +186,7 @@ function renderSlots() {
     }
     $('#at-add').disabled = freeIndex() < 0;
     const sel = selectedSlot();
-    $('#at-info').innerHTML = sel ? `<span class="tag">Slot ${sel.index}</span><b></b> · ${boneName(sel.bone)}` : '<span class="muted">Nenhum slot selecionado</span>';
+    $('#at-info').innerHTML = sel ? `<span class="tag">Slot ${sel.index}</span><b></b> · ${boneName(sel.bone)}` : '<span class="muted">No slot selected</span>';
     if (sel) $('#at-info b').textContent = `${sel.model} ${modelLabel(sel.model)}`;
 }
 
@@ -199,7 +199,7 @@ function renderEditor() {
     const setVal = (el, v) => { if (document.activeElement !== el) el.value = v; };
     $('#at-index').innerHTML = Array.from({ length: MAX_SLOTS }, (_, i) => {
         const used = slotAt(i) && i !== s.index;
-        return `<option value="${i}">${i}${used ? ' (trocar)' : ''}</option>`;
+        return `<option value="${i}">${i}${used ? ' (swap)' : ''}</option>`;
     }).join('');
     $('#at-index').value = s.index;
     $('#at-bone').value = s.bone;
@@ -219,7 +219,7 @@ function renderEditor() {
 }
 
 function renderCode() {
-    $('#at-code').innerHTML = state.slots.length ? ctx.highlight(pawn.generateAttached(state.slots)) : '<span class="muted">// nenhum objeto</span>';
+    $('#at-code').innerHTML = state.slots.length ? ctx.highlight(pawn.generateAttached(state.slots)) : '<span class="muted">// no objects</span>';
 }
 
 function fillStaticSelects() {
@@ -231,7 +231,7 @@ function fillStaticSelects() {
 
 function addSlot(base) {
     const index = freeIndex();
-    if (index < 0) return ctx.toast('Todos os 10 slots estão em uso');
+    if (index < 0) return ctx.toast('All 10 slots are in use');
     const sel = selectedSlot();
     const slot = newSlot(index, base ?? (sel ? { model: sel.model, bone: sel.bone } : {}));
     state.slots.push(slot);
@@ -407,7 +407,7 @@ function bind() {
     };
     const doImport = (replace) => {
         const parsed = pawn.parseAttached($('#at-import').value);
-        if (!parsed.length) return ctx.toast('Nenhum SetPlayerAttachedObject encontrado');
+        if (!parsed.length) return ctx.toast('No SetPlayerAttachedObject found');
         if (replace) {
             for (const s of state.slots) editor.removeSlot(s.index);
             state.slots = [];
@@ -422,7 +422,7 @@ function bind() {
         }
         select(parsed[0].index);
         changed();
-        ctx.toast(`${parsed.length} objeto(s) importado(s)`);
+        ctx.toast(`Imported ${parsed.length} object(s)`);
     };
     $('#at-import-add').onclick = () => doImport(false);
     $('#at-import-replace').onclick = () => doImport(true);
