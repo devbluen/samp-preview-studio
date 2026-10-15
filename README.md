@@ -25,6 +25,17 @@ See `config.example.json` for the defaults. You can also set `PORT` and `GTA_PAT
 - In the "Na tela 640×448" (on screen) tab, load an in-game screenshot as the background to see the textdraw in its real position.
 - Shareable URL: `/?model=411&rot=-16,0,-55,1&size=160,160`. Add `&view=screen` to open the screen tab.
 
+## Attached object editor
+
+The "Attached object" tab is a 3D editor for `SetPlayerAttachedObject`:
+
+- Pick a skin, then add up to 10 slots (indexes 0-9). For each slot, choose the object model, the bone (all 18 SA-MP bones) and its offset, rotation, scale and material colors.
+- Drag the gizmo in the viewport to move (W), rotate (E) or scale (R) the object. The gizmo works in the bone's local axes by default. Click an object to select it and press F to focus the camera on it.
+- The values update live in the generated `SetPlayerAttachedObject(playerid, index, modelid, bone, ...)` lines. You can also paste existing lines into "Importar código" to edit them.
+- Open it directly with `/?mode=attach`. Add `&view=front|back|left|right|top|focus` to choose the camera.
+
+Each attachment is parented to the bone's frame, so the editor's local position, rotation and scale are exactly the offset, rotation and scale values that SA-MP uses. The skin is shown in the DFF bind pose (arms slightly open), not the in-game animated pose. The object's position relative to the bone is the same either way.
+
 ## Accuracy
 
 The SA-MP client's rendering code is closed source, so the camera is an approximation:

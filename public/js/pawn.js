@@ -75,3 +75,49 @@ export function parse(code) {
     for (const k of Object.keys(out)) if (typeof out[k] === 'number' && !Number.isFinite(out[k])) delete out[k];
     return out;
 }
+
+// ---------------- SetPlayerAttachedObject ----------------
+
+const argbHex = (v) => '0x' + (v >>> 0).toString(16).toUpperCase().padStart(8, '0');
+
+export function attachedLine(s, playerVar = 'playerid') {
+    const args = [playerVar, s.index, s.model, s.bone, f(s.x), f(s.y), f(s.z), f(s.rx), f(s.ry), f(s.rz), f(s.sx), f(s.sy), f(s.sz)];
+    if (s.mc1 || s.mc2) args.push(argbHex(s.mc1), argbHex(s.mc2));
+    return `SetPlayerAttachedObject(${args.join(', ')});`;
+}
+
+export function generateAttached(slots, playerVar = 'playerid') {
+    return [...slots].sort((a, b) => a.index - b.index).map((s) => attachedLine(s, playerVar)).join('\n');
+}
+
+/** Parses every SetPlayerAttachedObject call in the snippet; missing optional args get SA-MP defaults */
+export function parseAttached(code) {
+    const out = [];
+    const re = /SetPlayerAttachedObject\s*\(([^;]*?)\)\s*;/gi;
+    let m;
+    while ((m = re.exec(code))) {
+        const a = m[1].split(',').map((p) => p.trim().replace(/^Float:/i, ''));
+        if (a.length < 4) continue;
+        const n = (i, d) => {
+            const v = Number(a[i]);
+            return a[i] !== undefined && Number.isFinite(v) ? v : d;
+        };
+        const color = (i) => {
+            if (a[i] === undefined) return 0;
+            const c = parseColor(a[i]);
+            return c ? ((c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3]) >>> 0 : 0;
+        };
+        const index = /^\d+$/.test(a[1]) ? Number(a[1]) : out.length;
+        const model = Number(a[2]);
+        const bone = Number(a[3]);
+        if (!Number.isInteger(model) || !Number.isInteger(bone)) continue;
+        out.push({
+            index, model, bone,
+            x: n(4, 0), y: n(5, 0), z: n(6, 0),
+            rx: n(7, 0), ry: n(8, 0), rz: n(9, 0),
+            sx: n(10, 1), sy: n(11, 1), sz: n(12, 1),
+            mc1: color(13), mc2: color(14),
+        });
+    }
+    return out;
+}

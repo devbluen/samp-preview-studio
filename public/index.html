@@ -5,20 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TextDraw Model Preview</title>
     <link rel="stylesheet" href="/css/style.css">
+    <script type="importmap">
+        { "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+    </script>
 </head>
 <body>
 <header class="topbar">
     <div class="brand">
         <span class="logo">TD</span>
         <div>
-            <h1>TextDraw Model Preview</h1>
-            <p>Simulador offline do <code>TEXT_DRAW_FONT_MODEL_PREVIEW</code></p>
+            <h1>SA-MP Model Preview</h1>
+            <p>Simulador offline de <code>TEXT_DRAW_FONT_MODEL_PREVIEW</code> e <code>SetPlayerAttachedObject</code></p>
         </div>
+    </div>
+    <div class="segmented mode-tabs" id="mode-tabs">
+        <button data-mode="textdraw" class="active">TextDraw preview</button>
+        <button data-mode="attach">Attached object</button>
     </div>
     <span id="source-badge" class="badge"></span>
 </header>
 
-<main class="app">
+<main class="app" id="textdraw-app">
     <!-- ===== Left column: controls ===== -->
     <aside class="col col-left">
         <section class="card">
@@ -167,6 +174,143 @@
             <div class="card-head"><h2>Importar código</h2></div>
             <textarea id="import" placeholder="Cole aqui o bloco do seu textdraw (TextDraw* ou PlayerTextDraw*): SetPreviewRot, SetPreviewModel, TextSize, BackgroundColor…"></textarea>
             <button id="import-btn" class="btn full">Importar</button>
+        </section>
+    </aside>
+</main>
+
+<main class="app" id="attach-app" hidden>
+    <!-- ===== Left column: skin and attachment slots ===== -->
+    <aside class="col col-left">
+        <section class="card">
+            <div class="card-head"><h2>Skin</h2></div>
+            <div class="model-nav no-source">
+                <button id="at-skin-prev" class="btn icon" title="Skin anterior">‹</button>
+                <input id="at-skin" type="number" min="0" max="311" value="7" title="ID da skin">
+                <button id="at-skin-next" class="btn icon" title="Próxima skin">›</button>
+            </div>
+            <div class="search">
+                <input id="at-skin-search" type="search" placeholder="Buscar skin por nome ou ID…" autocomplete="off">
+                <ul class="results" id="at-skin-results"></ul>
+            </div>
+            <div id="at-skin-name" class="muted"></div>
+        </section>
+
+        <section class="card">
+            <div class="card-head"><h2>Objetos presos</h2><button id="at-add" class="btn ghost sm" title="Adicionar um slot (índice livre de 0 a 9)">+ Adicionar</button></div>
+            <ul id="at-slots" class="slot-list"></ul>
+        </section>
+
+        <section class="card" id="at-editor">
+            <div class="card-head"><h2>Slot</h2>
+                <div class="inline">
+                    <button id="at-dup" class="btn ghost sm" title="Duplicar no próximo índice livre">Duplicar</button>
+                    <button id="at-del" class="btn ghost sm danger" title="Remover slot">Remover</button>
+                </div>
+            </div>
+            <div class="grid2">
+                <label>Índice<select id="at-index"></select></label>
+                <label>Bone<select id="at-bone"></select></label>
+            </div>
+            <div class="field">
+                <label>Modelo</label>
+                <div class="inline">
+                    <input id="at-model" type="number" min="0" class="model-input" title="ID do objeto">
+                    <div class="search grow">
+                        <input id="at-model-search" type="search" placeholder="Buscar objeto…" autocomplete="off">
+                        <ul class="results" id="at-model-results"></ul>
+                    </div>
+                </div>
+                <div id="at-model-name" class="muted"></div>
+            </div>
+            <div class="vec">
+                <span class="vec-label">Posição</span>
+                <input type="number" step="0.01" data-k="x" title="fOffsetX"><input type="number" step="0.01" data-k="y" title="fOffsetY"><input type="number" step="0.01" data-k="z" title="fOffsetZ">
+            </div>
+            <div class="vec">
+                <span class="vec-label">Rotação</span>
+                <input type="number" step="1" data-k="rx" title="fRotX"><input type="number" step="1" data-k="ry" title="fRotY"><input type="number" step="1" data-k="rz" title="fRotZ">
+            </div>
+            <div class="vec">
+                <span class="vec-label">Escala</span>
+                <input type="number" step="0.05" data-k="sx" title="fScaleX"><input type="number" step="0.05" data-k="sy" title="fScaleY"><input type="number" step="0.05" data-k="sz" title="fScaleZ">
+            </div>
+            <div class="vec-axes"><span></span><span class="x">X</span><span class="y">Y</span><span class="z">Z</span></div>
+            <label class="check"><input id="at-uniform" type="checkbox"> Escala uniforme</label>
+            <div class="field">
+                <label>Cores do material <small>materialcolor1 / 2 (ARGB)</small></label>
+                <div class="inline mc-row">
+                    <label class="check" title="Usar materialcolor1"><input id="at-mc1-on" type="checkbox"> 1</label>
+                    <input id="at-mc1" type="color" value="#ffffff">
+                    <label class="mini">A <input id="at-mc1-a" type="number" min="0" max="255" value="255"></label>
+                </div>
+                <div class="inline mc-row">
+                    <label class="check" title="Usar materialcolor2"><input id="at-mc2-on" type="checkbox"> 2</label>
+                    <input id="at-mc2" type="color" value="#ffffff">
+                    <label class="mini">A <input id="at-mc2-a" type="number" min="0" max="255" value="255"></label>
+                </div>
+            </div>
+        </section>
+
+        <details class="card">
+            <summary><h2>Opções</h2><span class="muted">avançado</span></summary>
+            <label class="check"><input id="at-marker" type="checkbox" checked> Mostrar o bone selecionado</label>
+            <p class="hint">A skin aparece na pose de bind do DFF (braços abertos), não na pose animada do jogo. A posição relativa ao bone é a mesma.</p>
+        </details>
+    </aside>
+
+    <!-- ===== Center: 3D editor ===== -->
+    <section class="col stage">
+        <div class="stage-bar">
+            <div class="segmented" id="at-gizmo">
+                <button data-mode="translate" class="active" title="Mover (W)">Mover <kbd>W</kbd></button>
+                <button data-mode="rotate" title="Girar (E)">Girar <kbd>E</kbd></button>
+                <button data-mode="scale" title="Escala (R)">Escala <kbd>R</kbd></button>
+            </div>
+            <div class="segmented" id="at-space">
+                <button data-space="local" class="active" title="Eixos do bone/objeto">Local</button>
+                <button data-space="world" title="Eixos do mundo">Mundo</button>
+            </div>
+            <div class="segmented" id="at-views">
+                <button data-view="front">Frente</button>
+                <button data-view="right">Lado</button>
+                <button data-view="back">Costas</button>
+                <button data-view="top">Topo</button>
+                <button data-view="focus" title="Centralizar no objeto selecionado">Focar</button>
+            </div>
+            <div class="zoom-ctl" title="Zoom da câmera">
+                <button id="at-zoom-out" class="btn icon sm" title="Afastar">−</button>
+                <input id="at-zoom" type="range" min="0" max="100" step="0.5">
+                <button id="at-zoom-in" class="btn icon sm" title="Aproximar">+</button>
+                <span id="at-zoom-val" class="zoom-val"></span>
+            </div>
+            <span id="at-status" class="muted"></span>
+        </div>
+        <div class="viewport">
+            <div class="view active at-view"><canvas id="at-canvas"></canvas></div>
+        </div>
+        <div class="stage-foot">
+            <div id="at-info"></div>
+            <div class="hint">Arraste o objeto para movê-lo ou use o gizmo para travar um eixo · botão esquerdo no fundo orbita, direito move a câmera, roda = zoom</div>
+        </div>
+    </section>
+
+    <!-- ===== Right column: code ===== -->
+    <aside class="col col-right">
+        <section class="card">
+            <div class="card-head"><h2>Código PAWN</h2></div>
+            <pre id="at-code" class="code"></pre>
+            <div class="btn-row">
+                <button id="at-copy-all" class="btn primary">Copiar tudo</button>
+                <button id="at-copy-one" class="btn">Copiar selecionado</button>
+            </div>
+        </section>
+        <section class="card">
+            <div class="card-head"><h2>Importar código</h2></div>
+            <textarea id="at-import" placeholder="Cole aqui uma ou mais linhas SetPlayerAttachedObject(playerid, index, modelid, bone, ...);"></textarea>
+            <div class="btn-row">
+                <button id="at-import-add" class="btn">Adicionar aos slots</button>
+                <button id="at-import-replace" class="btn">Substituir tudo</button>
+            </div>
         </section>
     </aside>
 </main>

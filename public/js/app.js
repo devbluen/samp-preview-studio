@@ -323,12 +323,6 @@ function bind() {
     $('#cal-reset').onclick = () => { Object.assign(calib, DEFAULT_CALIBRATION); store.set('td-preview-calib', calib); syncInputs(); requestRender(); };
 
     // Copy / import
-    const copy = async (text) => {
-        try { await navigator.clipboard.writeText(text); } catch {
-            const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
-        }
-        toast('Copiado!');
-    };
     $('#copy-code').onclick = () => copy(pawn.generate(state));
     $('#copy-rot').onclick = () => copy(pawn.rotLine(state));
     $('#import-btn').onclick = () => {
@@ -389,6 +383,32 @@ function setScreenBg(src) {
     img.src = src;
 }
 
+async function copy(text) {
+    try { await navigator.clipboard.writeText(text); } catch {
+        const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
+    }
+    toast('Copiado!');
+}
+
+// ---------------- mode switch (textdraw / attached object) ----------------
+
+let attachModule = null;
+async function setMode(mode) {
+    mode = mode === 'attach' ? 'attach' : 'textdraw';
+    for (const b of $$('#mode-tabs button')) b.classList.toggle('active', b.dataset.mode === mode);
+    $('#textdraw-app').hidden = mode !== 'textdraw';
+    $('#attach-app').hidden = mode !== 'attach';
+    try { localStorage.setItem('td-preview-mode', mode); } catch { /* */ }
+    if (mode !== 'attach') return requestRender();
+    if (!attachModule) {
+        attachModule = import('./attach-ui.js').then(async (m) => {
+            await m.initAttach({ store, toast, copy, highlight, getCatalog: () => catalog });
+            return m;
+        });
+    }
+    (await attachModule).onShow();
+}
+
 function toast(text) {
     const t = document.createElement('div');
     t.className = 'toast';
@@ -429,9 +449,14 @@ async function init() {
         if (!data.local) $('#source-select option[value=local]').remove();
         if (!data.local && state.source === 'local') state.source = '';
     } catch {
-        setStatus('Não foi possível carregar o catálogo', true);
+        setStatus('Não foi possível carregar o catálogo', 'error');
     }
     loadModel(state.model);
+
+    for (const b of $$('#mode-tabs button')) b.onclick = () => setMode(b.dataset.mode);
+    let mode = new URLSearchParams(location.search).get('mode');
+    if (!mode) try { mode = localStorage.getItem('td-preview-mode'); } catch { /* */ }
+    setMode(mode);
 }
 
 init();
