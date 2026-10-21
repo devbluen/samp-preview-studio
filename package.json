@@ -10,10 +10,10 @@
   "contributors": [
     "Claude (Anthropic) <noreply@anthropic.com>"
   ],
-  "homepage": "https://github.com/devbluen/textdraw-rot-preview",
+  "homepage": "https://github.com/devbluen/samp-preview-studio",
   "repository": {
     "type": "git",
-    "url": "https://github.com/devbluen/textdraw-rot-preview.git"
+    "url": "https://github.com/devbluen/samp-preview-studio.git"
   },
   "type": "module",
   "main": "desktop/main.mjs",

@@ -6,7 +6,7 @@ It runs in three ways, all with the same features:
 
 | | How | Notes |
 |---|---|---|
-| **Website** | Open the GitHub Pages site | Nothing to install. Everything runs in your browser. |
+| **Website** | Open [devbluen.github.io/samp-preview-studio](https://devbluen.github.io/samp-preview-studio/) | Nothing to install. Everything runs in your browser. |
 | **Desktop app** | Download the `.exe` (Windows) or `.AppImage` (Linux) from [Releases](../../releases) | Its own window. Remembers the game folder and caches open.mp models for offline use. |
 | **Local server** | `npm install` then `npm start` → http://localhost:3000 | For development. `npm run desktop` opens the desktop app from the source. |
 
