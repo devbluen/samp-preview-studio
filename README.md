@@ -44,7 +44,7 @@ See `config.example.json` for the defaults. You can also set `PORT`, `HOST` (def
 ## Building
 
 - `npm run build:web` creates the static site in `dist/`. The **Deploy to GitHub Pages** workflow does this on every push to `main`. To turn it on, go to Settings → Pages and set Source to **GitHub Actions**.
-- `npm run dist:win` / `npm run dist:linux` create the desktop app in `release/` (Windows: portable `.exe` and installer). The **Build desktop app** workflow builds both. You can run it from the Actions tab, and pushing a tag such as `v1.1.0` publishes the builds on a GitHub Release.
+- `npm run dist:win` / `npm run dist:linux` create the desktop app in `release/` (Windows: portable `.exe` and installer). To publish a release, go to Actions → **Build desktop app** → **Run workflow** and type the version (e.g. `1.2.0`). It builds Windows and Linux, then creates the tag `v1.2.0` and the GitHub Release with the files. Nothing is tagged if a build fails. Pushing a tag such as `v1.2.0` yourself does the same.
 - `npm run build:catalog` regenerates `public/data/catalog.json` after you update `data/*.json`.
 
 ## TextDraw preview

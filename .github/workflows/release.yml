@@ -1,17 +1,55 @@
-# Builds the desktop app. Every run uploads the builds as workflow artifacts; pushing a tag such as v1.1.0
-# also publishes them on a GitHub Release.
+# Builds the desktop app and publishes it on a GitHub Release.
+# Actions > Build desktop app > Run workflow: type the version (e.g. 1.2.0). The workflow builds the app
+# with that version and, once every build passed, creates the tag v1.2.0 and the release.
+# Pushing a tag such as v1.2.0 yourself does the same.
 name: Build desktop app
 
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. 1.2.0). Creates the tag v1.2.0'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: check
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then v="${INPUT_VERSION#v}"; else v="${GITHUB_REF_NAME#v}"; fi
+          v="$(echo "$v" | xargs)"
+          if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::\"$v\" is not a valid version. Use MAJOR.MINOR.PATCH, e.g. 1.2.0 (or 1.2.0-beta.1)."
+            exit 1
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && git rev-parse -q --verify "refs/tags/v$v" >/dev/null; then
+            echo "::error::The tag v$v already exists. Choose a new version."
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Releasing version $v (tag v$v)" >> "$GITHUB_STEP_SUMMARY"
+
   build:
+    needs: version
     strategy:
       fail-fast: false
       matrix:
@@ -32,9 +70,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # The app version comes from the tag (v1.2.3 -> 1.2.3)
-      - if: startsWith(github.ref, 'refs/tags/v')
-        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+      - run: npm version "${{ needs.version.outputs.version }}" --no-git-tag-version --allow-same-version
         shell: bash
       - run: npm run ${{ matrix.script }}
         env:
@@ -46,15 +82,19 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: release
           merge-multiple: true
+      # Creates the tag on the commit that was built (if it doesn't exist yet) and the release
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ needs.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: v${{ needs.version.outputs.version }}
+          prerelease: ${{ inputs.prerelease || contains(needs.version.outputs.version, '-') }}
           files: release/*
           generate_release_notes: true
