@@ -1,6 +1,7 @@
 import { Snapshot, DEFAULT_CALIBRATION } from './snapshot.js';
 import { VEHICLE_COLORS } from './colors.js';
 import * as pawn from './pawn.js';
+import { sources, kindOf } from './sources.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -15,7 +16,7 @@ const store = {
 };
 
 const DEFAULT_STATE = {
-    model: 411, kind: 'vehicle', source: '',
+    model: 411, kind: 'vehicle',
     rx: -16, ry: 0, rz: -55, zoom: 1,
     bg: [0, 0, 0, 0x99], c1: 1, c2: 1,
     x: 240, y: 150, width: 160, height: 160,
@@ -88,7 +89,7 @@ async function loadModel(id) {
     $('#model-id').value = id;
     setStatus('Loading model…', 'loading');
     try {
-        const info = await snapshot.load(id, state.source);
+        const info = await snapshot.load(id);
         if (seq !== loadSeq || !info) return;
         state.kind = info.kind;
         const extras = snapshot.extras;
@@ -97,14 +98,16 @@ async function loadModel(id) {
         $('#extra').value = state.extra;
         $('#extra-row').hidden = !extras.length;
         const label = { skin: 'Skin', vehicle: 'Vehicle', object: 'Object' }[info.kind];
-        $('#model-name').innerHTML = `<span class="tag">${label}</span><b></b><span class="model-file"></span><span class="tag src">${info.source === 'local' ? 'local game' : 'open.mp'}</span>`;
+        $('#model-name').innerHTML = `<span class="tag">${label}</span><b></b><span class="model-file"></span>${info.modified ? '<span class="tag mod">modified</span>' : ''}<span class="tag src"></span>`;
         $('#model-name b').textContent = info.name;
+        $('#model-name .src').textContent = info.origin;
+        $('#model-name .src').title = info.source === 'local' ? 'Loaded from your game folder' : 'Loaded from assets.open.mp';
         $('#model-name .model-file').textContent = info.name !== info.model ? ` · ${info.model}.dff` : '';
         setStatus('');
     } catch (e) {
         if (seq !== loadSeq) return;
         snapshot.clear();
-        state.kind = id >= 400 && id <= 611 ? 'vehicle' : id >= 0 && id <= 311 ? 'skin' : 'object';
+        state.kind = kindOf(id);
         $('#model-name').textContent = '';
         setStatus(e.message, 'error');
     }
@@ -149,9 +152,9 @@ function renderResults() {
         if (isNum ? String(c[0]).startsWith(q) : c[1].includes(q) || c[2].toLowerCase().includes(q)) hits.push(c);
         if (hits.length >= 200) break;
     }
-    for (const [id, model, name, kind] of hits) {
+    for (const [id, model, name, kind, mod] of hits) {
         const li = document.createElement('li');
-        li.innerHTML = `<b>${id}</b><span></span><i>${{ s: 'skin', v: 'vehicle', o: 'object' }[kind]}</i>`;
+        li.innerHTML = `<b>${id}</b><span></span>${mod ? '<i class="mod" title="Modified version in modloader/">mod</i>' : ''}<i>${{ s: 'skin', v: 'vehicle', o: 'object' }[kind]}</i>`;
         li.querySelector('span').textContent = name ? `${name} (${model})` : model;
         li.onclick = () => { closeResults(); loadModel(id); };
         ul.appendChild(li);
@@ -199,7 +202,6 @@ function syncInputs() {
     $('#td-player').checked = state.player;
     $('#td-selectable').checked = state.selectable;
     $('#td-var').value = state.varName;
-    $('#source-select').value = state.source;
     $('#cal-order').value = calib.order;
     $('#cal-side').value = String(calib.cameraSide);
     $('#cal-fov').value = calib.fov;
@@ -242,7 +244,6 @@ function bind() {
     $('#model-id').addEventListener('change', (e) => loadModel(e.target.value));
     $('#prev-model').onclick = () => step(-1);
     $('#next-model').onclick = () => step(1);
-    $('#source-select').onchange = (e) => { state.source = e.target.value; loadModel(state.model); };
     $('#search').addEventListener('input', renderResults);
     $('#search').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') ($('#results li.active') || $('#results li'))?.click();
@@ -390,16 +391,98 @@ async function copy(text) {
     toast('Copied!');
 }
 
+// ---------------- model source (game folder, Default / Modified) ----------------
+
+function renderSources() {
+    const btn = $('#folder-btn');
+    const pending = sources.pendingHandle;
+    btn.querySelector('span').textContent = sources.game ? sources.folderName : pending ? `Reopen ${pending.name}` : 'Choose GTA SA folder';
+    btn.title = sources.game ? `Game folder: ${sources.folderPath} (click to change)` : 'Pick your GTA San Andreas folder. Files are read on your computer, nothing is uploaded.';
+    btn.classList.toggle('primary', !sources.game);
+    $('#folder-forget').hidden = !sources.game && !pending;
+    $('#folder-compat').hidden = sources.env.desktop || !('showDirectoryPicker' in window);
+    for (const b of $$('#variant-tabs button')) b.classList.toggle('active', b.dataset.variant === sources.variant);
+    const parts = [];
+    if (sources.game) parts.push(sources.modCount ? `${sources.modCount} mod file${sources.modCount > 1 ? 's' : ''} in modloader` : 'no modloader mods');
+    parts.push('open.mp');
+    $('#source-badge').textContent = parts.join(' · ');
+    let dismissed = false;
+    try { dismissed = !!localStorage.getItem('td-preview-notice'); } catch { /* */ }
+    $('#notice').hidden = !!sources.game || (dismissed && !sources.folderError);
+    $('#notice-error').textContent = sources.folderError ? `Could not read the saved game folder: ${sources.folderError}` : '';
+}
+
+// Status line of the visible tab
+function showStatus(text, kind) {
+    const el = $('#attach-app').hidden ? $('#status') : $('#at-status');
+    el.textContent = text;
+    el.className = kind || 'muted';
+}
+
+async function folderAction(fn) {
+    try {
+        showStatus('Reading game folder…', 'loading');
+        const result = await fn();
+        if (result === false && !sources.env.desktop) {
+            showStatus('No folder was opened. If the browser refused it (Chrome blocks folders inside Program Files), use Compatibility mode.', 'error');
+        } else showStatus('');
+    } catch (e) {
+        showStatus(`Could not read the game folder: ${e.message}`, 'error');
+        toast(`Could not read the game folder: ${e.message}`);
+    }
+    renderSources();
+}
+
+function bindSources() {
+    $('#folder-btn').onclick = () => folderAction(() => (sources.pendingHandle && !sources.game ? sources.reconnect() : sources.pick()));
+    $('#folder-compat').onclick = () => folderAction(() => sources.pick({ compat: true }));
+    $('#folder-forget').onclick = () => folderAction(() => sources.forget());
+    $('#notice-pick').onclick = () => $('#folder-btn').click();
+    $('#notice-close').onclick = () => {
+        try { localStorage.setItem('td-preview-notice', '1'); } catch { /* */ }
+        sources.folderError = '';
+        renderSources();
+    };
+    for (const b of $$('#variant-tabs button')) b.onclick = () => sources.setVariant(b.dataset.variant);
+    sources.addEventListener('change', async () => {
+        catalog = sources.catalog;
+        renderSources();
+        if (textdrawStarted) loadModel(state.model);
+        if (attachModule) (await attachModule).reload();
+    });
+}
+
 // ---------------- mode switch (textdraw / attached object) ----------------
 
 let attachModule = null;
-async function setMode(mode) {
-    mode = mode === 'attach' ? 'attach' : 'textdraw';
+let textdrawStarted = false; // the textdraw model loads the first time its tab opens
+
+// Attached object is the default tab; links with textdraw parameters (?model=, ?rot=, ?size=) open the textdraw tab
+function initialMode() {
+    const q = new URLSearchParams(location.search);
+    if (q.get('mode')) return q.get('mode');
+    if (q.has('model') || q.has('rot') || q.has('size')) return 'textdraw';
+    try { return localStorage.getItem('td-preview-mode'); } catch { return null; }
+}
+
+function showMode(mode) {
     for (const b of $$('#mode-tabs button')) b.classList.toggle('active', b.dataset.mode === mode);
     $('#textdraw-app').hidden = mode !== 'textdraw';
     $('#attach-app').hidden = mode !== 'attach';
+}
+
+async function setMode(mode) {
+    mode = mode === 'textdraw' ? 'textdraw' : 'attach';
+    showMode(mode);
     try { localStorage.setItem('td-preview-mode', mode); } catch { /* */ }
-    if (mode !== 'attach') return requestRender();
+    if (mode === 'textdraw') {
+        if (attachModule) (await attachModule).onHide();
+        if (!textdrawStarted) {
+            textdrawStarted = true;
+            loadModel(state.model);
+        }
+        return requestRender();
+    }
     if (!attachModule) {
         attachModule = import('./attach-ui.js').then(async (m) => {
             await m.initAttach({ store, toast, copy, highlight, getCatalog: () => catalog });
@@ -441,21 +524,22 @@ async function init() {
         const saved = localStorage.getItem('td-preview-screen');
         if (saved) setScreenBg(saved);
     } catch { /* */ }
+    const mode = initialMode() === 'textdraw' ? 'textdraw' : 'attach';
+    showMode(mode);
+    bindSources();
     try {
-        const res = await fetch('/api/catalog');
-        const data = await res.json();
-        catalog = data.items;
-        $('#source-badge').textContent = data.local ? 'sources: open.mp + local game' : 'source: assets.open.mp';
-        if (!data.local) $('#source-select option[value=local]').remove();
-        if (!data.local && state.source === 'local') state.source = '';
-    } catch {
-        setStatus('Could not load the catalog', 'error');
+        await sources.init();
+        catalog = sources.catalog;
+    } catch (e) {
+        setStatus(`Could not load the catalog: ${e.message}`, 'error');
     }
-    loadModel(state.model);
+    renderSources();
 
     for (const b of $$('#mode-tabs button')) b.onclick = () => setMode(b.dataset.mode);
-    let mode = new URLSearchParams(location.search).get('mode');
-    if (!mode) try { mode = localStorage.getItem('td-preview-mode'); } catch { /* */ }
+    const credits = $('#credits');
+    $('#credits-btn').onclick = () => credits.showModal();
+    $('#credits-close').onclick = () => credits.close();
+    credits.addEventListener('click', (e) => e.target === credits && credits.close()); // backdrop
     setMode(mode);
 }
 

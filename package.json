@@ -1,13 +1,90 @@
 {
   "name": "samp-preview-studio",
+  "productName": "SA-MP Preview Studio",
   "version": "1.0.0",
-  "description": "Offline previewer for SA-MP/open.mp: textdraw model previews (TextDrawSetPreviewRot) and a 3D editor for SetPlayerAttachedObject. No server needed.",
+  "description": "Previewer for SA-MP/open.mp: textdraw model previews (TextDrawSetPreviewRot) and a 3D editor for SetPlayerAttachedObject. Runs in the browser, as a local server or as a desktop app.",
+  "author": {
+    "name": "devbluen",
+    "url": "https://github.com/devbluen"
+  },
+  "contributors": [
+    "Claude (Anthropic) <noreply@anthropic.com>"
+  ],
+  "homepage": "https://github.com/devbluen/textdraw-rot-preview",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devbluen/textdraw-rot-preview.git"
+  },
   "type": "module",
-  "main": "server.js",
+  "main": "desktop/main.mjs",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "desktop": "electron .",
+    "build:catalog": "node scripts/build-catalog.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:linux": "electron-builder --linux --publish never"
   },
   "dependencies": {
     "three": "0.160.0"
+  },
+  "devDependencies": {
+    "electron": "^44.9.2",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "io.github.devbluen.samp-preview-studio",
+    "productName": "SA-MP Preview Studio",
+    "artifactName": "SA-MP-Preview-Studio-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "server.js",
+      "desktop/**",
+      "public/**",
+      "package.json",
+      "!node_modules/three/**",
+      {
+        "from": "node_modules/three",
+        "to": "vendor/three",
+        "filter": [
+          "build/three.module.js",
+          "examples/jsm/controls/OrbitControls.js",
+          "examples/jsm/controls/TransformControls.js",
+          "LICENSE"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "SA-MP-Preview-Studio-${version}-portable.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "SA-MP-Preview-Studio-${version}-setup.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Development"
+    }
   }
 }

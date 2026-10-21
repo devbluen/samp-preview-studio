@@ -1,7 +1,8 @@
-// Shared model loading: fetches a model (DFF + textures) from the server and builds a THREE scene graph.
+// Shared model loading: gets a model (DFF + textures) from the active source and builds a THREE scene graph.
 import * as THREE from 'three';
 import { parseDff, textureNames } from './dff.js';
 import { VEHICLE_COLORS } from './colors.js';
+import { sources } from './sources.js';
 
 const WHEEL_DUMMIES = ['wheel_rf_dummy', 'wheel_lf_dummy', 'wheel_rb_dummy', 'wheel_lb_dummy', 'wheel_rm_dummy', 'wheel_lm_dummy'];
 
@@ -17,49 +18,42 @@ const SKIN_FIX = { x: Math.PI / 2, y: 0, z: Math.PI };
 export class ModelLoader {
     constructor(onChange) {
         this.onChange = onChange;
-        this.textureCache = new Map();
+        this.textureCache = new Map(); // open.mp texture name -> THREE.Texture
+        this.rgbaCache = new WeakMap(); // decoded TXD texture -> THREE.DataTexture
     }
 
     /**
      * Returns { info, root } where root.userData = { body, world, dff, extras }.
      * body is the group holding the meshes (with the ped fix applied); world[i] is frame i's matrix inside body.
      */
-    async load(id, source) {
-        const q = source ? `?source=${source}` : '';
-        const infoRes = await fetch(`/api/model/${id}${q}`);
-        const info = await infoRes.json();
-        if (!infoRes.ok) throw new Error(info.error || 'Failed to fetch the model');
-        const dffRes = await fetch(info.dff);
-        if (!dffRes.ok) throw new Error(`Model "${info.model}" is not available (${dffRes.status}).`);
-        const dff = parseDff(await dffRes.arrayBuffer());
-        const textures = await this.loadTextures(info, dff);
-        return { info, root: build(dff, textures, info.kind) };
+    async load(id) {
+        const found = await sources.resolve(id);
+        const dff = parseDff(found.dff);
+        const textures = await this.loadTextures(found, dff);
+        return { info: found.info, root: build(dff, textures, found.info.kind) };
     }
 
-    async loadTextures(info, dff) {
+    async loadTextures(found, dff) {
         const map = new Map();
-        if (info.source === 'local') {
-            for (const txd of info.txds) {
-                const key = 'local:' + txd;
-                if (!this.textureCache.has(key)) {
-                    const res = await fetch(`/api/local/txd/${txd}`);
-                    this.textureCache.set(key, res.ok ? decodeTxdPayload(await res.arrayBuffer()) : new Map());
-                }
-                for (const [name, tex] of this.textureCache.get(key)) if (!map.has(name)) map.set(name, tex);
+        const names = textureNames(dff);
+        const raw = await found.textures(names);
+        if (found.info.textures === 'rgba') {
+            for (const [name, t] of raw) {
+                if (!this.rgbaCache.has(t)) this.rgbaCache.set(t, dataTexture(t));
+                map.set(name, this.rgbaCache.get(t));
             }
             return map;
         }
-        for (const name of textureNames(dff)) {
-            const key = 'openmp:' + name;
-            if (!this.textureCache.has(key)) {
-                const tex = new THREE.TextureLoader().load(`/api/openmp/tex/${encodeURIComponent(name)}.png`, () => this.onChange?.(), undefined, () => {
+        for (const [name, url] of raw) {
+            if (!this.textureCache.has(url)) {
+                const tex = new THREE.TextureLoader().load(url, () => this.onChange?.(), undefined, () => {
                     tex.userData.missing = true;
                     this.onChange?.();
                 });
                 prepareTexture(tex);
-                this.textureCache.set(key, tex);
+                this.textureCache.set(url, tex);
             }
-            map.set(name, this.textureCache.get(key));
+            map.set(name, this.textureCache.get(url));
         }
         return map;
     }
@@ -231,28 +225,12 @@ function prepareTexture(tex) {
     return tex;
 }
 
-function decodeTxdPayload(buffer) {
-    const view = new DataView(buffer);
-    const bytes = new Uint8Array(buffer);
-    const out = new Map();
-    let o = 4;
-    const n = view.getUint32(0, true);
-    for (let i = 0; i < n; i++) {
-        const len = bytes[o];
-        const name = new TextDecoder('latin1').decode(bytes.subarray(o + 1, o + 1 + len));
-        o += 1 + len;
-        const w = view.getUint16(o, true);
-        const h = view.getUint16(o + 2, true);
-        o += 4;
-        const data = bytes.slice(o, o + w * h * 4);
-        o += w * h * 4;
-        const tex = new THREE.DataTexture(data, w, h, THREE.RGBAFormat);
-        tex.generateMipmaps = true;
-        tex.minFilter = THREE.LinearMipmapLinearFilter;
-        tex.magFilter = THREE.LinearFilter;
-        prepareTexture(tex);
-        tex.needsUpdate = true;
-        out.set(name, tex);
-    }
-    return out;
+function dataTexture({ width, height, rgba }) {
+    const tex = new THREE.DataTexture(rgba, width, height, THREE.RGBAFormat);
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    prepareTexture(tex);
+    tex.needsUpdate = true;
+    return tex;
 }

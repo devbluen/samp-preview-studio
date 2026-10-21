@@ -1,10 +1,11 @@
-// 3D editor for SetPlayerAttachedObject: a skin in its bind pose with objects attached to SA-MP bones.
-// Each attachment is a holder group parented to the bone's frame, so the holder's local
+// 3D editor for SetPlayerAttachedObject and AttachObjectToVehicle: a skin in its bind pose with objects
+// attached to SA-MP bones, or a vehicle with objects attached to its origin.
+// Each attachment is a holder group parented to the bone's frame (or the vehicle), so the holder's local
 // position / rotation / scale are exactly the offset / rot / scale values used by SA-MP.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
-import { ModelLoader, disposeModel } from './models.js';
+import { ModelLoader, disposeModel, applyVehicleColors } from './models.js';
 
 const DEG = Math.PI / 180;
 
@@ -41,6 +42,8 @@ export class AttachEditor {
         // SA-MP applies rotX, then rotY, then rotZ on the object's local axes (three.js order 'XYZ').
         // Verified against well-known in-game values (helmet 18645 88,75,0; santa hat 19065 0,100,100).
         this.order = 'XYZ';
+        // Objects on vehicles are plain GTA objects: CMatrix::SetRotate builds Rz * Rx * Ry (three.js 'ZXY')
+        this.vehicleOrder = 'ZXY';
 
         this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -92,7 +95,7 @@ export class AttachEditor {
         this.boneMarker.children[0].material.depthTest = false;
         this.boneMarker.children[0].renderOrder = 999;
 
-        this.skin = null; // { root, anchors: Map<boneNumber, Group> }
+        this.skin = null; // { root, anchors: Map<boneNumber, Group>, info, vehicle } (skin or vehicle)
         this.items = new Map(); // slot index -> { holder, model, root, token }
         this.selected = null;
         this.showMarker = true;
@@ -102,25 +105,55 @@ export class AttachEditor {
         this.resize();
     }
 
-    // ---------------- skin ----------------
+    // ---------------- base model (skin or vehicle) ----------------
 
-    async setSkin(id) {
+    get isVehicle() {
+        return !!this.skin?.vehicle;
+    }
+
+    setSkin(id) {
+        return this.setBase(id, 'skin');
+    }
+
+    setVehicle(id, colors = [1, 1]) {
+        this.vehicleColors = colors;
+        return this.setBase(id, 'vehicle');
+    }
+
+    setVehicleColors(c1, c2) {
+        this.vehicleColors = [c1, c2];
+        if (this.isVehicle) applyVehicleColors(this.skin.root, c1, c2);
+        this.render();
+    }
+
+    setVehicleOrder(order) {
+        this.vehicleOrder = order;
+    }
+
+    async setBase(id, kind) {
         const token = (this.skinToken = (this.skinToken || 0) + 1);
-        this.onStatus?.('Loading skin…', 'loading');
+        this.onStatus?.(`Loading ${kind}…`, 'loading');
         try {
-            const { info, root } = await this.loader.load(id, '');
+            const { info, root } = await this.loader.load(id);
             if (token !== this.skinToken) return disposeModel(root);
-            if (info.kind !== 'skin') {
+            if (info.kind !== kind) {
                 disposeModel(root);
-                throw new Error(`Model ${id} is not a skin.`);
+                throw new Error(`Model ${id} is not a ${kind}.`);
             }
+            const wasVehicle = this.isVehicle;
             if (this.skin) {
                 this.scene.remove(this.skin.root);
                 disposeModel(this.skin.root);
             }
             const { body, world, dff } = root.userData;
             const anchors = new Map();
-            for (const bone of BONES) {
+            if (kind === 'vehicle') {
+                root.traverse((o) => {
+                    if (o.userData.extra) o.visible = false;
+                });
+                applyVehicleColors(root, ...(this.vehicleColors ?? [1, 1]));
+            }
+            for (const bone of kind === 'skin' ? BONES : []) {
                 let fi = dff.frames.findIndex((f) => f.boneId === bone.boneId);
                 if (fi < 0) fi = dff.frames.findIndex((f) => f.name.trim().toLowerCase() === bone.frame);
                 const anchor = new THREE.Group();
@@ -132,9 +165,13 @@ export class AttachEditor {
             }
             this.scene.add(root);
             root.updateMatrixWorld(true);
-            this.grid.position.z = new THREE.Box3().setFromObject(root).min.z;
-            this.skin = { root, anchors, info };
-            // Re-parent existing attachments to the new skeleton
+            const box = new THREE.Box3().setFromObject(root);
+            this.grid.position.z = box.min.z;
+            this.skin = { root, anchors, info, vehicle: kind === 'vehicle', radius: box.getSize(new THREE.Vector3()).length() / 2 };
+            this.orbit.maxDistance = kind === 'vehicle' ? 30 : 12;
+            this.boneMarker.scale.setScalar(kind === 'vehicle' ? 4 : 1);
+            if (wasVehicle !== this.isVehicle) this.view('reset');
+            // Re-parent existing attachments to the new skeleton / vehicle
             for (const item of this.items.values()) this.parentHolder(item);
             this.updateMarker();
             this.onStatus?.('');
@@ -147,7 +184,7 @@ export class AttachEditor {
     }
 
     parentHolder(item) {
-        const anchor = this.skin?.anchors.get(item.bone) ?? this.scene;
+        const anchor = (this.isVehicle ? this.skin.root.userData.body : this.skin?.anchors.get(item.bone)) ?? this.scene;
         if (item.holder.parent !== anchor) anchor.add(item.holder);
     }
 
@@ -180,7 +217,7 @@ export class AttachEditor {
             }
             this.render();
             try {
-                const { info, root } = await this.loader.load(slot.model, '');
+                const { info, root } = await this.loader.load(slot.model);
                 if (token !== item.token || this.items.get(slot.index) !== item) return disposeModel(root);
                 item.root = root;
                 item.info = info;
@@ -201,6 +238,11 @@ export class AttachEditor {
         return item;
     }
 
+    /** Forgets the loaded models so the next setSlot() loads them again (after the model source changes). */
+    invalidate() {
+        for (const item of this.items.values()) item.model = null;
+    }
+
     removeSlot(index) {
         const item = this.items.get(index);
         if (!item) return;
@@ -215,8 +257,10 @@ export class AttachEditor {
 
     applyTransform(holder, s) {
         holder.position.set(s.x, s.y, s.z);
-        holder.rotation.set(s.rx * DEG, s.ry * DEG, s.rz * DEG, this.order);
-        holder.scale.set(s.sx || 0.0001, s.sy || 0.0001, s.sz || 0.0001);
+        holder.rotation.set(s.rx * DEG, s.ry * DEG, s.rz * DEG, this.isVehicle ? this.vehicleOrder : this.order);
+        // AttachObjectToVehicle has no scale
+        if (this.isVehicle) holder.scale.set(1, 1, 1);
+        else holder.scale.set(s.sx || 0.0001, s.sy || 0.0001, s.sz || 0.0001);
     }
 
     select(index) {
@@ -246,7 +290,7 @@ export class AttachEditor {
 
     updateMarker() {
         const item = this.items.get(this.selected);
-        const anchor = item && this.skin?.anchors.get(item.bone);
+        const anchor = item && (this.isVehicle ? this.skin.root.userData.body : this.skin?.anchors.get(item.bone));
         this.boneMarker.parent?.remove(this.boneMarker);
         if (anchor && this.showMarker) anchor.add(this.boneMarker);
     }
@@ -312,12 +356,13 @@ export class AttachEditor {
             const item = this.items.get(this.selected);
             const target = new THREE.Vector3();
             if (item) item.holder.getWorldPosition(target);
-            const offset = this.camera.position.clone().sub(t).setLength(0.9);
+            const offset = this.camera.position.clone().sub(t).setLength(this.isVehicle ? 2.5 : 0.9);
             t.copy(target);
             this.camera.position.copy(target).add(offset);
         } else if (name === 'reset') {
             t.set(0, 0, 0);
-            this.camera.position.set(0, 2.6, 0.35);
+            if (this.isVehicle) this.camera.position.set(-0.55, 1, 0.35).setLength(Math.max(this.skin.radius * 2.6, 4));
+            else this.camera.position.set(0, 2.6, 0.35);
         } else {
             const v = new THREE.Vector3(...dirs[name]).normalize().multiplyScalar(d);
             this.camera.position.copy(t).add(v);

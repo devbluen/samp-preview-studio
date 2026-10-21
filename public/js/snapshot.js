@@ -36,9 +36,9 @@ export class Snapshot {
         return this.renderer.domElement;
     }
 
-    async load(id, source) {
+    async load(id) {
         const token = ++this.loadToken;
-        const { info, root } = await this.loader.load(id, source);
+        const { info, root } = await this.loader.load(id);
         if (token !== this.loadToken) {
             disposeModel(root);
             return null;

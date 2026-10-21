@@ -121,3 +121,48 @@ export function parseAttached(code) {
     }
     return out;
 }
+
+// ---------------- AttachObjectToVehicle ----------------
+
+/** Two lines per object: create it, then attach it (offset/rotation relative to the vehicle origin) */
+export function vehicleObjectLines(s, { streamer = false, objectVar = 'objectid', vehicleVar = 'vehicleid' } = {}) {
+    const create = streamer ? 'CreateDynamicObject' : 'CreateObject';
+    const attach = streamer ? 'AttachDynamicObjectToVehicle' : 'AttachObjectToVehicle';
+    return [
+        `${objectVar} = ${create}(${s.model}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);`,
+        `${attach}(${objectVar}, ${vehicleVar}, ${f(s.x)}, ${f(s.y)}, ${f(s.z)}, ${f(s.rx)}, ${f(s.ry)}, ${f(s.rz)});`,
+    ].join('\n');
+}
+
+export function generateVehicle(slots, vehicleModel, options = {}) {
+    const objectVar = options.objectVar || 'objectid';
+    return [
+        `// vehicleid: a vehicle of model ${vehicleModel}`,
+        `new ${objectVar};`,
+        ...[...slots].sort((a, b) => a.index - b.index).map((s) => vehicleObjectLines(s, options)),
+    ].join('\n');
+}
+
+/**
+ * Parses AttachObjectToVehicle / AttachDynamicObjectToVehicle calls. The model comes from the latest
+ * CreateObject / CreateDynamicObject assigned to the same variable before the attach call.
+ */
+export function parseVehicle(code) {
+    const out = [];
+    const models = new Map();
+    const re = /([\w\[\]]+)\s*=\s*Create(?:Dynamic)?Object\s*\(\s*(\d+)|Attach(?:Dynamic)?ObjectToVehicle\s*\(([^;]*?)\)\s*;/gi;
+    let m;
+    while ((m = re.exec(code))) {
+        if (m[1]) {
+            models.set(m[1], Number(m[2]));
+            continue;
+        }
+        const a = m[3].split(',').map((p) => p.trim().replace(/^Float:/i, ''));
+        if (a.length < 8) continue;
+        const model = models.get(a[0]);
+        if (model === undefined) continue;
+        const n = (i) => (Number.isFinite(Number(a[i])) ? Number(a[i]) : 0);
+        out.push({ index: out.length, model, x: n(2), y: n(3), z: n(4), rx: n(5), ry: n(6), rz: n(7) });
+    }
+    return out;
+}

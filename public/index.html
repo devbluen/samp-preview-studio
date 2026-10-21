@@ -4,9 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SA-MP Preview Studio</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="css/style.css">
     <script type="importmap">
-        { "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+        { "imports": { "three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/examples/jsm/" } }
     </script>
 </head>
 <body>
@@ -19,26 +19,73 @@
         </div>
     </div>
     <div class="segmented mode-tabs" id="mode-tabs">
-        <button data-mode="textdraw" class="active">TextDraw preview</button>
-        <button data-mode="attach">Attached object</button>
+        <button data-mode="attach" class="active">Attached object</button>
+        <button data-mode="textdraw">TextDraw preview</button>
     </div>
-    <span id="source-badge" class="badge"></span>
+    <div class="sources">
+        <div class="folder-ctl">
+            <button id="folder-btn" class="btn sm"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1.5 4.5v8a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-6a1 1 0 0 0-1-1H8L6.5 3.5h-4a1 1 0 0 0-1 1Z"/></svg><span>Choose GTA SA folder</span></button>
+            <button id="folder-compat" class="btn ghost sm" title="Use this if the browser refuses the folder (for example inside Program Files). Works in every browser, but you pick the folder again on each visit." hidden>Compatibility mode</button>
+            <button id="folder-forget" class="btn ghost sm icon" title="Forget the game folder" hidden>×</button>
+        </div>
+        <div class="segmented" id="variant-tabs" title="Which version of each model to show when your game has mods">
+            <button data-variant="default" title="Original models: open.mp, or your game's IMG archives ignoring modloader">Default</button>
+            <button data-variant="modified" title="Your game's models, including modloader mods">Modified</button>
+        </div>
+        <span id="source-badge" class="badge"></span>
+        <div class="credits-ctl">
+            <button id="credits-btn" class="btn ghost sm" title="Credits">Credits</button>
+            <a class="btn ghost sm icon" href="https://github.com/devbluen" target="_blank" rel="noopener" title="devbluen on GitHub"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+        </div>
+    </div>
 </header>
+<dialog id="credits" class="credits">
+    <div class="card-head"><h2>Credits</h2><button id="credits-close" class="btn ghost sm icon" title="Close">×</button></div>
+    <ul class="credit-list">
+        <li>
+            <b>devbluen</b><span>Creator and maintainer</span>
+            <a class="btn primary sm" href="https://github.com/devbluen" target="_blank" rel="noopener">GitHub</a>
+        </li>
+        <li>
+            <b>Claude</b><span>AI pair programmer by Anthropic. Helped build the web version, the desktop app and mod support.</span>
+            <a class="btn ghost sm" href="https://www.anthropic.com/claude" target="_blank" rel="noopener">anthropic.com</a>
+        </li>
+    </ul>
+    <h2 class="credit-sub">Built with</h2>
+    <ul class="credit-list small">
+        <li><b>open.mp models</b><span>Model catalog and original assets (assets.open.mp)</span><a href="https://github.com/AmyrAhmady/openmp-models" target="_blank" rel="noopener">openmp-models</a></li>
+        <li><b>three.js</b><span>3D rendering</span><a href="https://threejs.org" target="_blank" rel="noopener">threejs.org</a></li>
+        <li><b>Electron</b><span>Desktop app</span><a href="https://www.electronjs.org" target="_blank" rel="noopener">electronjs.org</a></li>
+    </ul>
+    <p class="hint">Source code: <a href="https://github.com/devbluen/textdraw-rot-preview" target="_blank" rel="noopener">github.com/devbluen/textdraw-rot-preview</a></p>
+</dialog>
+<dialog id="obj-browser" class="obj-browser">
+    <div class="card-head"><h2>Objects</h2><button id="ob-close" class="btn ghost sm icon" title="Close (Esc)">×</button></div>
+    <input id="ob-search" type="search" placeholder="Search all objects by name or ID…" autocomplete="off">
+    <div id="ob-cats" class="ob-cats"></div>
+    <p id="ob-hint" class="hint"></p>
+    <div id="ob-grid" class="ob-grid"></div>
+    <p class="hint">Click an object to use it in the selected slot · <b>+</b> adds it as a new slot · <b>☆</b> favorite</p>
+</dialog>
+<div id="notice" class="notice" hidden>
+    <b>Showing the original models from open.mp.</b>
+    <span id="notice-error" class="error"></span>
+    <p>Pick your GTA San Andreas folder to also see your modified skins and objects (<code>modloader/</code>) and the models only your game has. The files are read on your computer and nothing is uploaded.</p>
+    <span class="notice-actions">
+        <button id="notice-close" class="btn ghost sm">Not now</button>
+        <button id="notice-pick" class="btn primary sm">Choose folder</button>
+    </span>
+</div>
 
-<main class="app" id="textdraw-app">
+<main class="app" id="textdraw-app" hidden>
     <!-- ===== Left column: controls ===== -->
     <aside class="col col-left">
         <section class="card">
             <div class="card-head"><h2>Model</h2></div>
-            <div class="model-nav">
+            <div class="model-nav no-source">
                 <button id="prev-model" class="btn icon" title="Previous model">‹</button>
                 <input id="model-id" type="number" value="411" title="Model ID">
                 <button id="next-model" class="btn icon" title="Next model">›</button>
-                <select id="source-select" title="Where to load the model from">
-                    <option value="">Auto</option>
-                    <option value="openmp">open.mp</option>
-                    <option value="local">Local game</option>
-                </select>
             </div>
             <div class="search">
                 <input id="search" type="search" placeholder="Search by name or ID…" autocomplete="off">
@@ -178,25 +225,53 @@
     </aside>
 </main>
 
-<main class="app" id="attach-app" hidden>
-    <!-- ===== Left column: skin and attachment slots ===== -->
+<main class="app" id="attach-app">
+    <!-- ===== Left column: target (player skin / vehicle) and attachment slots ===== -->
     <aside class="col col-left">
         <section class="card">
-            <div class="card-head"><h2>Skin</h2></div>
-            <div class="model-nav no-source">
-                <button id="at-skin-prev" class="btn icon" title="Previous skin">‹</button>
-                <input id="at-skin" type="number" min="0" max="311" value="7" title="Skin ID">
-                <button id="at-skin-next" class="btn icon" title="Next skin">›</button>
+            <div class="card-head"><h2>Attach to</h2>
+                <div class="segmented" id="at-target">
+                    <button data-target="player" class="active" title="SetPlayerAttachedObject">Player</button>
+                    <button data-target="vehicle" title="AttachObjectToVehicle">Vehicle</button>
+                </div>
             </div>
-            <div class="search">
-                <input id="at-skin-search" type="search" placeholder="Search skin by name or ID…" autocomplete="off">
-                <ul class="results" id="at-skin-results"></ul>
+            <div class="player-only">
+                <div class="model-nav no-source">
+                    <button id="at-skin-prev" class="btn icon" title="Previous skin">‹</button>
+                    <input id="at-skin" type="number" min="0" max="311" value="7" title="Skin ID">
+                    <button id="at-skin-next" class="btn icon" title="Next skin">›</button>
+                </div>
+                <div class="search">
+                    <input id="at-skin-search" type="search" placeholder="Search skin by name or ID…" autocomplete="off">
+                    <ul class="results" id="at-skin-results"></ul>
+                </div>
+                <div id="at-skin-name" class="muted"></div>
             </div>
-            <div id="at-skin-name" class="muted"></div>
+            <div class="vehicle-only">
+                <div class="model-nav no-source">
+                    <button id="at-veh-prev" class="btn icon" title="Previous vehicle">‹</button>
+                    <input id="at-veh" type="number" min="400" max="611" value="411" title="Vehicle model ID">
+                    <button id="at-veh-next" class="btn icon" title="Next vehicle">›</button>
+                </div>
+                <div class="search">
+                    <input id="at-veh-search" type="search" placeholder="Search vehicle by name or ID…" autocomplete="off">
+                    <ul class="results" id="at-veh-results"></ul>
+                </div>
+                <div id="at-veh-name" class="muted"></div>
+                <div class="inline at-vcolors">
+                    <label class="mini">Colors <input id="at-vc1" type="number" min="0" max="255" title="Color 1"></label>
+                    <input id="at-vc2" type="number" min="0" max="255" title="Color 2">
+                </div>
+            </div>
         </section>
 
         <section class="card">
-            <div class="card-head"><h2>Attached objects</h2><button id="at-add" class="btn ghost sm" title="Add a slot (first free index from 0 to 9)">+ Add</button></div>
+            <div class="card-head"><h2>Attached objects</h2>
+                <div class="inline">
+                    <button id="at-browse" class="btn primary sm" title="Browse objects by category, with thumbnails">Browse</button>
+                    <button id="at-add" class="btn ghost sm" title="Add a slot (first free index from 0 to 9)">+ Add</button>
+                </div>
+            </div>
             <ul id="at-slots" class="slot-list"></ul>
         </section>
 
@@ -209,7 +284,7 @@
             </div>
             <div class="grid2">
                 <label>Index<select id="at-index"></select></label>
-                <label>Bone<select id="at-bone"></select></label>
+                <label class="player-only">Bone<select id="at-bone"></select></label>
             </div>
             <div class="field">
                 <label>Model</label>
@@ -219,6 +294,7 @@
                         <input id="at-model-search" type="search" placeholder="Search object…" autocomplete="off">
                         <ul class="results" id="at-model-results"></ul>
                     </div>
+                    <button id="at-model-browse" class="btn icon" title="Browse objects"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/></svg></button>
                 </div>
                 <div id="at-model-name" class="muted"></div>
             </div>
@@ -230,13 +306,13 @@
                 <span class="vec-label">Rotation</span>
                 <input type="number" step="1" data-k="rx" title="fRotX"><input type="number" step="1" data-k="ry" title="fRotY"><input type="number" step="1" data-k="rz" title="fRotZ">
             </div>
-            <div class="vec">
+            <div class="vec player-only">
                 <span class="vec-label">Scale</span>
                 <input type="number" step="0.05" data-k="sx" title="fScaleX"><input type="number" step="0.05" data-k="sy" title="fScaleY"><input type="number" step="0.05" data-k="sz" title="fScaleZ">
             </div>
             <div class="vec-axes"><span></span><span class="x">X</span><span class="y">Y</span><span class="z">Z</span></div>
-            <label class="check"><input id="at-uniform" type="checkbox"> Uniform scale</label>
-            <div class="field">
+            <label class="check player-only"><input id="at-uniform" type="checkbox"> Uniform scale</label>
+            <div class="field player-only">
                 <label>Material colors <small>materialcolor1 / 2 (ARGB)</small></label>
                 <div class="inline mc-row">
                     <label class="check" title="Use materialcolor1"><input id="at-mc1-on" type="checkbox"> 1</label>
@@ -253,8 +329,16 @@
 
         <details class="card">
             <summary><h2>Options</h2><span class="muted">advanced</span></summary>
-            <label class="check"><input id="at-marker" type="checkbox" checked> Show the selected bone</label>
-            <p class="hint">The skin is shown in the DFF bind pose (arms open), not the in-game animated pose. The position relative to the bone is the same.</p>
+            <label class="check"><input id="at-marker" type="checkbox" checked> Show the selected bone / vehicle origin</label>
+            <p class="hint player-only">The skin is shown in the DFF bind pose (arms open), not the in-game animated pose. The position relative to the bone is the same.</p>
+            <div class="field vehicle-only">
+                <label>Vehicle object rotation order</label>
+                <select id="at-vorder">
+                    <option value="ZXY">ZXY: GTA objects (default)</option>
+                    <option value="XYZ">XYZ: same as player attachments</option>
+                </select>
+                <p class="hint">Objects on vehicles use GTA's object rotation (CMatrix::SetRotate). If a rotated object doesn't match the game, compare once and switch the order here.</p>
+            </div>
         </details>
     </aside>
 
@@ -299,6 +383,7 @@
         <section class="card">
             <div class="card-head"><h2>PAWN code</h2></div>
             <pre id="at-code" class="code"></pre>
+            <label class="check vehicle-only"><input id="at-streamer" type="checkbox"> Streamer plugin (CreateDynamicObject)</label>
             <div class="btn-row">
                 <button id="at-copy-all" class="btn primary">Copy all</button>
                 <button id="at-copy-one" class="btn">Copy selected</button>
@@ -315,6 +400,12 @@
     </aside>
 </main>
 
-<script type="module" src="/js/app.js"></script>
+<script>
+    // ES modules don't load from file://, so the page would stay empty: explain instead
+    if (location.protocol === 'file:') {
+        document.body.insertAdjacentHTML('afterbegin', '<div class="file-warning"><b>This page cannot run as a local file.</b> Open the GitHub Pages site, the desktop app, or run <code>npm start</code> and open http://localhost:3000.</div>');
+    }
+</script>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>
