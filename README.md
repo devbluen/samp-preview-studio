@@ -94,5 +94,6 @@ Built with [openmp-models](https://github.com/AmyrAhmady/openmp-models) (model c
 The **Credits** button at the top right of the app shows the same list.
 
 ## Preview
-<img width="3436" height="1273" alt="image" src="https://github.com/user-attachments/assets/693e3399-85aa-4e20-ac32-dd39f27c2576" />
-<img width="3436" height="1261" alt="image" src="https://github.com/user-attachments/assets/d3a790c6-b5be-4569-b84a-ff4668a30702" />
+<img width="2089" height="1078" alt="Captura de tela 2026-10-20 235354" src="https://github.com/user-attachments/assets/e7b830d4-6e43-45b9-8504-8f04d52872bd" />
+<img width="2088" height="1076" alt="Captura de tela 2026-10-20 235441" src="https://github.com/user-attachments/assets/b44e645c-e784-4d18-974d-ba23002d4bb5" />
+
